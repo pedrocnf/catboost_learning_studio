@@ -15,13 +15,13 @@ jobs:
       id-token: write
 
     env:
-      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      REGION: ${{ secrets.GCP_REGION }}
-      SERVICE_NAME: ${{ secrets.GCP_SERVICE }}
-      ARTIFACT_LOCATION: ${{ secrets.GCP_ARTIFACT_LOCATION }}
-      ARTIFACT_REPOSITORY: ${{ secrets.GCP_ARTIFACT_REPOSITORY }}
-      IMAGE_URI: ${{ secrets.GCP_ARTIFACT_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPOSITORY }}/${{ secrets.GCP_SERVICE }}:latest
-      RUNTIME_SERVICE_ACCOUNT: cloudrun-runtime@catboost-learning-studio.iam.gserviceaccount.com
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      SERVICE_NAME: ${{ vars.GCP_SERVICE }}
+      ARTIFACT_LOCATION: ${{ vars.GCP_ARTIFACT_LOCATION }}
+      ARTIFACT_REPOSITORY: ${{ vars.GCP_ARTIFACT_REPOSITORY }}
+      RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+      IMAGE_URI: ${{ vars.GCP_ARTIFACT_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPOSITORY }}/${{ vars.GCP_SERVICE }}:latest
 
     steps:
       - name: Checkout
