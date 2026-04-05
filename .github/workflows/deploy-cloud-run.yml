@@ -1,56 +1,59 @@
-name: deploy-cloud-run
+name: Deploy to Cloud Run
 
 on:
   push:
-    branches: [ main ]
-
-permissions:
-  contents: read
-  id-token: write
-
-env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: us-central1
-  SERVICE: catboost-learning-studio
-  REPOSITORY: apps
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
+
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      REGION: ${{ secrets.GCP_REGION }}
+      SERVICE_NAME: ${{ secrets.GCP_SERVICE }}
+      ARTIFACT_LOCATION: ${{ secrets.GCP_ARTIFACT_LOCATION }}
+      ARTIFACT_REPOSITORY: ${{ secrets.GCP_ARTIFACT_REPOSITORY }}
+      IMAGE_URI: ${{ secrets.GCP_ARTIFACT_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPOSITORY }}/${{ secrets.GCP_SERVICE }}:latest
+      RUNTIME_SERVICE_ACCOUNT: cloudrun-runtime@catboost-learning-studio.iam.gserviceaccount.com
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Set up gcloud
+      - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v3
+        with:
+          version: ">= 363.0.0"
 
       - name: Configure Docker auth
-        run: gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker ${ARTIFACT_LOCATION}-docker.pkg.dev --quiet
 
-      - name: Build and push image
-        run: |
-          IMAGE=$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$SERVICE:${{ github.sha }}
-          docker build -t $IMAGE .
-          docker push $IMAGE
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+      - name: Build image
+        run: docker build -t "${IMAGE_URI}" .
+
+      - name: Push image
+        run: docker push "${IMAGE_URI}"
 
       - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v3
-        with:
-          service: ${{ env.SERVICE }}
-          region: ${{ env.REGION }}
-          image: ${{ env.IMAGE }}
-          flags: >-
-            --allow-unauthenticated
-            --port=8080
-            --memory=1Gi
-            --cpu=1
-            --min-instances=0
-            --max-instances=1
-            --timeout=900
+        run: |
+          gcloud run deploy "${SERVICE_NAME}" \
+            --image "${IMAGE_URI}" \
+            --region "${REGION}" \
+            --project "${PROJECT_ID}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --service-account "${RUNTIME_SERVICE_ACCOUNT}" \
+            --port 8080
